@@ -1,0 +1,40 @@
+name: VfB Stuttgart Kalender aktualisieren
+
+on:
+  schedule:
+    # Taeglich um 09:00 UTC (06:00 Uhr Argentinien / 10-11 Uhr Deutschland)
+    - cron: "0 9 * * *"
+  workflow_dispatch: {}   # erlaubt manuelles Ausloesen ueber den "Run workflow"-Button
+
+permissions:
+  contents: write   # noetig, damit der Workflow die aktualisierte .ics zurueck ins Repo committen darf
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repo auschecken
+        uses: actions/checkout@v4
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Abhaengigkeiten installieren
+        run: pip install -r requirements.txt
+
+      - name: Kalender aktualisieren
+        run: python update_calendar.py
+
+      - name: Aenderungen committen (nur falls es welche gibt)
+        run: |
+          git config user.name "vfb-calendar-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add vfb_2026_27.ics
+          if git diff --cached --quiet; then
+            echo "Keine Aenderungen an den Anstosszeiten."
+          else
+            git commit -m "Automatisches Kalender-Update ($(date -u +'%Y-%m-%d %H:%M UTC'))"
+            git push
+          fi
